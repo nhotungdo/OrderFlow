@@ -52,6 +52,17 @@ public class RedisService : IRedisService
         return JsonSerializer.Deserialize<T>(value.ToString()!);
     }
 
+    public async Task<string?> GetStringAsync(string key)
+    {
+        var value = await _database.StringGetAsync(key);
+        return value.IsNullOrEmpty ? null : value.ToString();
+    }
+
+    public async Task<bool> SetStringAsync(string key, string value, TimeSpan? expiry = null)
+    {
+        return await _database.StringSetAsync(key, value, expiry);
+    }
+
     public async Task<bool> RemoveAsync(string key)
     {
         return await _database.KeyDeleteAsync(key);

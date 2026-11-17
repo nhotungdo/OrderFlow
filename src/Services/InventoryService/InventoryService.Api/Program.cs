@@ -1,41 +1,89 @@
+using BuildingBlocks.Common;
+using BuildingBlocks.Messaging;
+using InventoryService.Api.Consumers;
+using InventoryService.Application;
+using InventoryService.Application.Commands.CommitStock;
+using InventoryService.Application.Commands.ReleaseStock;
+using InventoryService.Application.Commands.ReserveStock;
+using InventoryService.Application.Commands.SeedProducts;
+using InventoryService.Application.Queries.GetProducts;
+using InventoryService.Infrastructure;
+using InventoryService.Infrastructure.Persistence;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// 1. BuildingBlocks & Layer Services
+builder.Services.AddCommonBuildingBlocks();
+builder.Services.AddInventoryApplication();
+builder.Services.AddInventoryInfrastructure(builder.Configuration);
+
+// 2. MassTransit RabbitMQ Consumers
+builder.Services.AddMessagingInfrastructure(builder.Configuration, busConfig =>
+{
+    busConfig.AddConsumer<ReleaseStockConsumer>();
+    busConfig.AddConsumer<PaymentFailedConsumer>();
+    busConfig.AddConsumer<PaymentCompletedConsumer>();
+});
+
+// 3. OpenAPI Documentation
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// 4. Auto-migration & Database setup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+    await dbContext.Database.EnsureCreatedAsync();
+}
+
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
-app.UseHttpsRedirection();
+// 5. REST Endpoints for Inventory
+var inventoryGroup = app.MapGroup("/api/inventory").WithTags("Inventory");
 
-var summaries = new[]
+inventoryGroup.MapGet("/products", async (ISender sender) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var result = await sender.Send(new GetProductsQuery());
+    return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(result.Error);
 })
-.WithName("GetWeatherForecast");
+.WithName("GetProducts");
+
+inventoryGroup.MapPost("/reserve", async (ReserveStockCommand command, ISender sender) =>
+{
+    var result = await sender.Send(command);
+    return result.IsSuccess ? Results.Ok(new { message = "Stock reserved successfully" }) : Results.Conflict(result.Error);
+})
+.WithName("ReserveStock");
+
+inventoryGroup.MapPost("/release", async (ReleaseStockCommand command, ISender sender) =>
+{
+    var result = await sender.Send(command);
+    return result.IsSuccess ? Results.Ok(new { message = "Stock released successfully" }) : Results.BadRequest(result.Error);
+})
+.WithName("ReleaseStock");
+
+inventoryGroup.MapPost("/commit", async (CommitStockCommand command, ISender sender) =>
+{
+    var result = await sender.Send(command);
+    return result.IsSuccess ? Results.Ok(new { message = "Stock committed successfully" }) : Results.BadRequest(result.Error);
+})
+.WithName("CommitStock");
+
+inventoryGroup.MapPost("/seed", async (ISender sender) =>
+{
+    var result = await sender.Send(new SeedProductsCommand());
+    return result.IsSuccess ? Results.Ok(new { message = "Sample inventory seeded successfully" }) : Results.BadRequest(result.Error);
+})
+.WithName("SeedProducts");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
