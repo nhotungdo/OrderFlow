@@ -8,6 +8,7 @@ public interface IOrderCreatedEvent
     string OrderCode { get; }
     Guid CustomerId { get; }
     decimal TotalAmount { get; }
+    string PaymentMethod { get; }
     IReadOnlyList<OrderItemMessage> Items { get; }
     DateTime CreatedAtUtc { get; }
 }
@@ -43,6 +44,13 @@ public interface IPaymentCompletedEvent
     DateTime PaidAtUtc { get; }
 }
 
+public record PaymentCompletedEvent(
+    Guid OrderId,
+    Guid PaymentId,
+    string TransactionId,
+    decimal Amount,
+    DateTime PaidAtUtc) : IPaymentCompletedEvent;
+
 public interface IPaymentFailedEvent
 {
     Guid OrderId { get; }
@@ -50,11 +58,20 @@ public interface IPaymentFailedEvent
     DateTime FailedAtUtc { get; }
 }
 
+public record PaymentFailedEvent(
+    Guid OrderId,
+    string Reason,
+    DateTime FailedAtUtc) : IPaymentFailedEvent;
+
 public interface IReleaseStockCommand
 {
     Guid OrderId { get; }
     string Reason { get; }
 }
+
+public record ReleaseStockCommandMessage(
+    Guid OrderId,
+    string Reason) : IReleaseStockCommand;
 
 public interface IStockReleasedEvent
 {

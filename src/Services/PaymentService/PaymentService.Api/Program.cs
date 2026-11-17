@@ -1,41 +1,63 @@
+using BuildingBlocks.Common;
+using BuildingBlocks.Messaging;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using PaymentService.Api.Consumers;
+using PaymentService.Application;
+using PaymentService.Application.Commands.ProcessPayment;
+using PaymentService.Application.Queries.GetPaymentByOrderId;
+using PaymentService.Infrastructure;
+using PaymentService.Infrastructure.Persistence;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// 1. Core Layers & BuildingBlocks
+builder.Services.AddCommonBuildingBlocks();
+builder.Services.AddPaymentApplication();
+builder.Services.AddPaymentInfrastructure(builder.Configuration);
+
+// 2. MassTransit RabbitMQ Consumers
+builder.Services.AddMessagingInfrastructure(builder.Configuration, busConfig =>
+{
+    busConfig.AddConsumer<OrderCreatedPaymentConsumer>();
+});
+
+// 3. OpenAPI Documentation
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// 4. Auto-migration
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
+    await dbContext.Database.EnsureCreatedAsync();
+}
+
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
-app.UseHttpsRedirection();
+// 5. REST Minimal Endpoints for Payments
+var paymentsGroup = app.MapGroup("/api/payments").WithTags("Payments");
 
-var summaries = new[]
+paymentsGroup.MapPost("/simulate", async (ProcessPaymentCommand command, ISender sender) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var result = await sender.Send(command);
+    return result.IsSuccess ? Results.Ok(result.Value) : Results.Conflict(result.Error);
 })
-.WithName("GetWeatherForecast");
+.WithName("SimulatePayment");
+
+paymentsGroup.MapGet("/{orderId:guid}", async (Guid orderId, ISender sender) =>
+{
+    var result = await sender.Send(new GetPaymentByOrderIdQuery(orderId));
+    return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(result.Error);
+})
+.WithName("GetPaymentByOrderId");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

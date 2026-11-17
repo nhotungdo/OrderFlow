@@ -10,6 +10,7 @@
     <ProjectReference Include="..\OrderService.Application\OrderService.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Redis\BuildingBlocks.Redis.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Idempotency\BuildingBlocks.Idempotency.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.Outbox\BuildingBlocks.Outbox.csproj" />
   </ItemGroup>
 
   <ItemGroup>
