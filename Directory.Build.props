@@ -4,5 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseSharedCompilation>false</UseSharedCompilation>
+    <!-- Disable mobile workload resolution for server-side microservices to avoid broken host android manifests -->
+    <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
   </PropertyGroup>
 </Project>
