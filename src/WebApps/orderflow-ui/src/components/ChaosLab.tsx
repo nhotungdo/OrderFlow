@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Product } from '../types';
-import { ordersApi } from '../api/client';
+import { ordersApi } from '../api/ordersApi';
 import { Flame, CheckCircle, XCircle, Zap, ShieldAlert } from 'lucide-react';
 
 interface ChaosLabProps {

@@ -95,7 +95,35 @@ Truy cập: `http://localhost:3000`
 
 ---
 
-## 4. Chạy Automated Tests & K6 Load Test
+## 4. Cấu trúc Giao diện Frontend (18 Màn hình: Customer & Admin)
+
+Giao diện được xây dựng bằng React 19 + TypeScript + Vite + Tailwind CSS v4, chia thành 2 phân hệ độc lập:
+
+### I. Customer Portal (8 Màn hình)
+1. **Authentication** (`/login`, `/register`): Đăng nhập, đăng ký, JWT, Quick Mock Role Switcher (Alice, Bob, Admin).
+2. **Product Catalog** (`/products`): Danh sách sản phẩm, tìm kiếm, lọc danh mục, Real-time 2-Tier Stock Watch Badge.
+3. **Product Details** (`/products/:id`): Xem chi tiết, tồn kho khả dụng vs đã giữ, bộ chọn số lượng chặn oversell.
+4. **Shopping Cart** (`/cart`): Giỏ hàng, cập nhật số lượng, tính tổng, Pre-checkout Inventory Validation.
+5. **Checkout** (`/checkout`): Địa chỉ, chọn kịch bản thanh toán, sinh UUID `X-Idempotency-Key`, toggle thử nghiệm Double-Click spam (Promise.all).
+6. **Payment Result** (`/payment-result/:orderId`): Polling trạng thái Saga phân tán, thông báo tự động hoàn kho khi thanh toán lỗi.
+7. **My Orders** (`/orders`): Danh sách lịch sử đơn hàng, bộ lọc đa trạng thái, tìm kiếm theo mã đơn.
+8. **Order Details** (`/orders/:id`): Chi tiết đơn, Customer State Machine Timeline, hủy đơn và hoàn kho tự động.
+
+### II. Admin Observability Dashboard (10 Màn hình)
+9. **Dashboard Overview** (`/admin`): Tổng quan KPIs (Doanh thu, Đơn hàng, SLA %, Tỷ lệ bồi hoàn), Health check microservices.
+10. **Product Management** (`/admin/products`): Danh sách sản phẩm, so sánh tồn kho PostgreSQL vs Redis.
+11. **Create / Edit Product** (`/admin/products/new`, `:id/edit`): Thêm/sửa sản phẩm, tự động cấp phát key Redis và row PostgreSQL.
+12. ⭐ **Two-Tier Inventory Management** (`/admin/inventory`) — **Showcase 1**: Bảng đối chiếu 2 tầng kho, nút Reconcile, Flash Sale Race Condition Attack Lab (bắn 15 requests đồng thời, chứng minh không âm kho).
+13. **Stock Movement History** (`/admin/inventory/history`): Sổ kiểm toán kho (Audit Trail: RESTOCK, HOLD, DEDUCT, RELEASE).
+14. **Order Management** (`/admin/orders`): Quản trị toàn bộ đơn hàng, lọc trạng thái, tra cứu Idempotency Key.
+15. ⭐ **Order Details & Saga Timeline** (`/admin/orders/:id`) — **Showcase 2**: Sơ đồ tiến trình Distributed Saga Choreography, Outbox Message ID, Correlation ID, xem raw JSON payload.
+16. **Payment Transactions Ledger** (`/admin/payments`): Sổ cái thanh toán, số tiền captured vs declined/reverted, kiểm tra tính lũy kế.
+17. ⭐ **Event Processing Monitor** (`/admin/system/events`) — **Showcase 3**: Giám sát hàng đợi RabbitMQ & MassTransit, throughput (msgs/s), consumer count, message lag.
+18. ⭐ **Failed Events & DLQ Retry** (`/admin/system/dlq`) — **Showcase 4**: Trung tâm quản lý Poison Messages, phân tích C# Exception Stack Trace, nút Replay an toàn với cam kết không tác dụng phụ trùng lặp.
+
+---
+
+## 5. Chạy Automated Tests & K6 Load Test
 
 ### Chạy Unit & Concurrency Tests (.NET xUnit)
 ```bash
