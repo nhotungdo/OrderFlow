@@ -12,23 +12,34 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Core Layers & BuildingBlocks
+// 1. CORS Policy
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// 2. Core Layers & BuildingBlocks
 builder.Services.AddCommonBuildingBlocks();
 builder.Services.AddPaymentApplication();
 builder.Services.AddPaymentInfrastructure(builder.Configuration);
 
-// 2. MassTransit RabbitMQ Consumers
+// 3. MassTransit RabbitMQ Consumers
 builder.Services.AddMessagingInfrastructure(builder.Configuration, busConfig =>
 {
-    busConfig.AddConsumer<OrderCreatedPaymentConsumer>();
+    busConfig.AddConsumer<StockReservedPaymentConsumer>();
 });
 
-// 3. OpenAPI Documentation
+// 4. OpenAPI Documentation
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// 4. Auto-migration
+// 5. Auto-migration
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
@@ -36,6 +47,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {
@@ -43,7 +55,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-// 5. REST Minimal Endpoints for Payments
+// 6. REST Minimal Endpoints for Payments
 var paymentsGroup = app.MapGroup("/api/payments").WithTags("Payments");
 
 paymentsGroup.MapPost("/simulate", async (ProcessPaymentCommand command, ISender sender) =>

@@ -15,13 +15,25 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Core Layers & BuildingBlocks
-builder.Services.AddControllers(); // Needed for ActionFilter-based IdempotentAttribute
+// 1. CORS Policy
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .WithExposedHeaders("X-Idempotency-Key");
+    });
+});
+
+// 2. Core Layers & BuildingBlocks
+builder.Services.AddControllers();
 builder.Services.AddCommonBuildingBlocks();
 builder.Services.AddOrderApplication();
 builder.Services.AddOrderInfrastructure(builder.Configuration);
 
-// 2. MassTransit RabbitMQ
+// 3. MassTransit RabbitMQ
 builder.Services.AddMessagingInfrastructure(builder.Configuration, busConfig =>
 {
     busConfig.AddConsumer<OrderPaymentCompletedConsumer>();
@@ -29,12 +41,12 @@ builder.Services.AddMessagingInfrastructure(builder.Configuration, busConfig =>
     busConfig.AddConsumer<OrderStockReservationFailedConsumer>();
 });
 
-// 3. OpenAPI Documentation
+// 4. OpenAPI Documentation
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// 4. Auto-migration
+// 5. Auto-migration
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
@@ -42,6 +54,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {
@@ -51,7 +64,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapControllers();
 
-// 5. REST Minimal Endpoints for Orders
+// 6. REST Minimal Endpoints for Orders
 var ordersGroup = app.MapGroup("/api/orders").WithTags("Orders");
 
 ordersGroup.MapGet("/", async (ISender sender) =>

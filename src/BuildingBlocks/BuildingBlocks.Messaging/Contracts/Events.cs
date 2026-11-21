@@ -16,9 +16,18 @@ public interface IOrderCreatedEvent
 public interface IStockReservedEvent
 {
     Guid OrderId { get; }
-    Guid ReservationId { get; }
+    Guid CustomerId { get; }
+    decimal TotalAmount { get; }
+    string PaymentMethod { get; }
     DateTime ReservedAtUtc { get; }
 }
+
+public record StockReservedEvent(
+    Guid OrderId,
+    Guid CustomerId,
+    decimal TotalAmount,
+    string PaymentMethod,
+    DateTime ReservedAtUtc) : IStockReservedEvent;
 
 public interface IStockReservationFailedEvent
 {
@@ -26,6 +35,11 @@ public interface IStockReservationFailedEvent
     string Reason { get; }
     DateTime FailedAtUtc { get; }
 }
+
+public record StockReservationFailedEvent(
+    Guid OrderId,
+    string Reason,
+    DateTime FailedAtUtc) : IStockReservationFailedEvent;
 
 public interface IProcessPaymentCommand
 {

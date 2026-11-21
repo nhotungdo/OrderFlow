@@ -15,25 +15,37 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. BuildingBlocks & Layer Services
+// 1. CORS Policy
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// 2. BuildingBlocks & Layer Services
 builder.Services.AddCommonBuildingBlocks();
 builder.Services.AddInventoryApplication();
 builder.Services.AddInventoryInfrastructure(builder.Configuration);
 
-// 2. MassTransit RabbitMQ Consumers
+// 3. MassTransit RabbitMQ Consumers
 builder.Services.AddMessagingInfrastructure(builder.Configuration, busConfig =>
 {
+    busConfig.AddConsumer<OrderCreatedInventoryConsumer>();
     busConfig.AddConsumer<ReleaseStockConsumer>();
     busConfig.AddConsumer<PaymentFailedConsumer>();
     busConfig.AddConsumer<PaymentCompletedConsumer>();
 });
 
-// 3. OpenAPI Documentation
+// 4. OpenAPI Documentation
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// 4. Auto-migration & Database setup
+// 5. Auto-migration & Database setup
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
@@ -41,6 +53,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {
@@ -48,7 +61,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-// 5. REST Endpoints for Inventory
+// 6. REST Endpoints for Inventory
 var inventoryGroup = app.MapGroup("/api/inventory").WithTags("Inventory");
 
 inventoryGroup.MapGet("/products", async (ISender sender) =>
